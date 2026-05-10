@@ -53,6 +53,12 @@ def init_db():
                 country_name TEXT,
                 UNIQUE(list_type, country_code)
             );
+
+            CREATE TABLE IF NOT EXISTS vat_treatments (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                normalized_name TEXT NOT NULL UNIQUE,
+                display_name    TEXT NOT NULL
+            );
         """)
 
 
@@ -206,6 +212,45 @@ def remove_country_from_list(list_type: str, country_code: str):
 
 def get_country_codes(list_type: str) -> list[str]:
     return [r["country_code"] for r in get_country_list(list_type)]
+
+
+# ── VAT Treatments ─────────────────────────────────────────────────────────
+
+def get_vat_treatments() -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, normalized_name, display_name FROM vat_treatments ORDER BY normalized_name"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_vat_treatment_labels() -> dict[str, str]:
+    return {r["normalized_name"]: r["display_name"] for r in get_vat_treatments()}
+
+
+def add_vat_treatment(normalized_name: str, display_name: str) -> bool:
+    try:
+        with get_conn() as conn:
+            conn.execute(
+                "INSERT INTO vat_treatments (normalized_name, display_name) VALUES (?,?)",
+                (normalized_name.strip(), display_name.strip()),
+            )
+        return True
+    except Exception:
+        return False
+
+
+def update_vat_treatment(vat_id: int, normalized_name: str, display_name: str):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE vat_treatments SET normalized_name=?, display_name=? WHERE id=?",
+            (normalized_name.strip(), display_name.strip(), vat_id),
+        )
+
+
+def delete_vat_treatment(vat_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM vat_treatments WHERE id=?", (vat_id,))
 
 
 # ── Full Mapping ────────────────────────────────────────────────────────────

@@ -4,7 +4,6 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
-from utils.constants import VAT_TREATMENT_LABELS
 
 HEADER_FILL   = PatternFill("solid", fgColor="1F3864")
 HEADER_FONT   = Font(bold=True, color="FFFFFF", size=10)
@@ -117,6 +116,7 @@ def build_excel(
     company: dict,
     eu_codes: list[str],
     non_eu_codes: list[str],
+    vat_labels: dict[str, str],
     country_filter: str | None = None,
 ) -> bytes:
     wb = openpyxl.Workbook()
@@ -145,7 +145,7 @@ def build_excel(
             if field == "tax_rate":
                 value = _fmt_rate(value if value != "" else None)
             elif field == "vat_treatment":
-                value = VAT_TREATMENT_LABELS.get(value, value)
+                value = vat_labels.get(value, value)
             elif field in ("notes", "supplier_location", "item_nature") and not value:
                 value = "—"
             elif field == "company_code" and not value:

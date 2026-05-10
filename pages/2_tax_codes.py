@@ -10,8 +10,9 @@ from database import (
     get_company_taxcodes,
     upsert_taxcodes,
     count_assigned,
+    get_vat_treatment_labels,
 )
-from utils.constants import VAT_TREATMENT_LABELS, COUNTRY_NAMES
+from utils.constants import COUNTRY_NAMES
 
 st.set_page_config(page_title="Tax Codes", page_icon="📋", layout="wide")
 st.title("📋 Tax Code Assignment")
@@ -38,8 +39,9 @@ selected_label = st.selectbox("Recipient Country", list(country_options.keys()))
 selected_country = country_options[selected_label]
 
 # ── Load scenarios + existing company codes ────────────────────────────────
-scenarios = get_scenarios(country=selected_country)
+scenarios  = get_scenarios(country=selected_country)
 existing_codes = get_company_taxcodes(company_id)
+vat_labels = get_vat_treatment_labels()
 
 if not scenarios:
     st.info(f"No active scenarios for {selected_country}.")
@@ -52,7 +54,7 @@ for s in scenarios:
         "id": s["id"],
         "Default Tax Code": s["default_code"],
         "Scenario Name": s["scenario_name"],
-        "VAT Treatment": VAT_TREATMENT_LABELS.get(s["vat_treatment"], s["vat_treatment"]),
+        "VAT Treatment": vat_labels.get(s["vat_treatment"], s["vat_treatment"]),
         "Tax Type": s["tax_type"],
         "Tax Rate": f"{s['tax_rate']*100:.1f}%" if s["tax_rate"] is not None else "—",
         "Supplier Location": s["supplier_location"] or "—",

@@ -1,5 +1,5 @@
 """Populates the DB with starter scenarios and country lists if tables are empty."""
-from database import get_conn, init_db, add_country_to_list, get_country_list
+from database import get_conn, init_db, add_country_to_list, get_country_list, add_vat_treatment, get_vat_treatments
 
 SEED_EU_COUNTRIES = [
     ("AT", "Austria"), ("BE", "Belgium"), ("BG", "Bulgaria"), ("CY", "Cyprus"),
@@ -377,6 +377,28 @@ def seed():
         for code, name in SEED_NON_EU_COUNTRIES:
             add_country_to_list("NonEU", code, name)
         print(f"Seeded {len(SEED_NON_EU_COUNTRIES)} NonEU countries.")
+
+    # Seed VAT treatments
+    if not get_vat_treatments():
+        seed_vat = [
+            ("STANDARD",           "Standard taxed"),
+            ("RC_INTRA_EU",        "Reverse charge — Intra-EU (Art. 44)"),
+            ("RC_DOMESTIC_§13b",   "Reverse charge — Domestic §13b UStG"),
+            ("RC_NONEU_SERVICES",  "Reverse charge — Non-EU services"),
+            ("EXEMPT_EXPORT",      "Exempt — Export outside EU §4 Nr.1a"),
+            ("EXEMPT_§4Nr8",       "Exempt — Banking/financial §4 Nr.8"),
+            ("EXEMPT_§4Nr10",      "Exempt — Insurance (VAT) §4 Nr.10"),
+            ("EXEMPT_§4Nr11b",     "Exempt — Postal universal service §4 Nr.11b"),
+            ("EXEMPT_§4Nr12",      "Exempt — Residential rent §4 Nr.12"),
+            ("EXEMPT_§4Nr14",      "Exempt — Healthcare/medical §4 Nr.14"),
+            ("EXEMPT_§4Nr21",      "Exempt — Education §4 Nr.21"),
+            ("EXEMPT_OTHER",       "Exempt — Other legal basis"),
+            ("KLEINUNTERNEHMER",   "Kleinunternehmer §19 UStG"),
+            ("NON_VAT",            "Non-VAT transaction"),
+        ]
+        for normalized, display in seed_vat:
+            add_vat_treatment(normalized, display)
+        print(f"Seeded {len(seed_vat)} VAT treatments.")
 
 
 if __name__ == "__main__":

@@ -15,14 +15,17 @@ from database import (
     get_country_list,
     add_country_to_list,
     remove_country_from_list,
+    get_vat_treatments,
+    add_vat_treatment,
+    update_vat_treatment,
+    delete_vat_treatment,
+    get_vat_treatment_labels,
 )
 from utils.constants import (
     TRANSACTION_TYPES,
     TAX_TYPES,
     SUPPLIER_LOCATIONS,
     ITEM_NATURES,
-    VAT_TREATMENTS,
-    VAT_TREATMENT_LABELS,
     COUNTRY_NAMES,
 )
 
@@ -53,10 +56,11 @@ if st.button("🔒 Lock admin"):
 
 st.divider()
 
-tab_add, tab_manage, tab_countries = st.tabs([
+tab_add, tab_manage, tab_countries, tab_vat = st.tabs([
     "➕ Add Scenario",
     "📑 Manage Scenarios",
     "🌍 Country Lists",
+    "🏷️ VAT Treatments",
 ])
 
 # ── Tab 1: Add Scenario ────────────────────────────────────────────────────
@@ -67,6 +71,10 @@ with tab_add:
 
     with st.form("add_scenario_form"):
         col1, col2 = st.columns(2)
+
+        _vat_list = get_vat_treatments()
+        _vat_normalized = [v["normalized_name"] for v in _vat_list]
+        _vat_labels_map  = {v["normalized_name"]: v["display_name"] for v in _vat_list}
 
         with col1:
             existing_countries = sorted(set(
@@ -91,8 +99,8 @@ with tab_add:
             item_nature = st.selectbox("Item Nature", ITEM_NATURES)
             vat_treatment = st.selectbox(
                 "VAT Treatment *",
-                VAT_TREATMENTS,
-                format_func=lambda v: VAT_TREATMENT_LABELS.get(v, v),
+                _vat_normalized,
+                format_func=lambda v: _vat_labels_map.get(v, v),
             )
             scenario_name = st.text_input(
                 "Scenario Name *",
@@ -157,13 +165,14 @@ with tab_manage:
         s for s in all_scenarios if s["recipient_country"] == filter_country
     ]
 
+    _manage_vat_labels = get_vat_treatment_labels()
     df = pd.DataFrame([
         {
             "ID":            s["id"],
             "Default Tax Code": s["default_code"],
             "Country":       s["recipient_country"],
             "Scenario Name": s["scenario_name"],
-            "VAT Treatment": VAT_TREATMENT_LABELS.get(s["vat_treatment"], s["vat_treatment"]),
+            "VAT Treatment": _manage_vat_labels.get(s["vat_treatment"], s["vat_treatment"]),
             "Tax Type":      s["tax_type"],
             "Tax Rate":      f"{s['tax_rate']*100:.2f}%" if s["tax_rate"] is not None else "—",
             "Tx Type":       s["transaction_type"],
@@ -219,6 +228,13 @@ with tab_manage:
         edit_label = st.selectbox("Select scenario to edit", list(scenario_opts.keys()), key="edit_sel")
         s = scenario_opts[edit_label]
 
+        _edit_vat_list    = get_vat_treatments()
+        _edit_vat_norm    = [v["normalized_name"] for v in _edit_vat_list]
+        _edit_vat_lbl_map = {v["normalized_name"]: v["display_name"] for v in _edit_vat_list}
+
+        _edit_supplier_opts = ["Domestic", "EU", "NonEU"]
+        _edit_item_opts     = ["Goods", "Services"]
+
         with st.form("edit_scenario_form"):
             c1, c2 = st.columns(2)
             with c1:
@@ -229,13 +245,13 @@ with tab_manage:
                     index=TAX_TYPES.index(s["tax_type"]) if s["tax_type"] in TAX_TYPES else 0)
                 edit_rate = st.text_input("Tax Rate (decimal)", value="" if s["tax_rate"] is None else str(s["tax_rate"]))
             with c2:
-                edit_supplier = st.selectbox("Supplier Location", SUPPLIER_LOCATIONS,
-                    index=SUPPLIER_LOCATIONS.index(s["supplier_location"]) if s["supplier_location"] in SUPPLIER_LOCATIONS else 0)
-                edit_item = st.selectbox("Item Nature", ITEM_NATURES,
-                    index=ITEM_NATURES.index(s["item_nature"]) if s["item_nature"] in ITEM_NATURES else 0)
-                edit_vat = st.selectbox("VAT Treatment", VAT_TREATMENTS,
-                    format_func=lambda v: VAT_TREATMENT_LABELS.get(v, v),
-                    index=VAT_TREATMENTS.index(s["vat_treatment"]) if s["vat_treatment"] in VAT_TREATMENTS else 0)
+                edit_supplier = st.selectbox("Supplier Location", _edit_supplier_opts,
+                    index=_edit_supplier_opts.index(s["supplier_location"]) if s["supplier_location"] in _edit_supplier_opts else 0)
+                edit_item = st.selectbox("Item Nature", _edit_item_opts,
+                    index=_edit_item_opts.index(s["item_nature"]) if s["item_nature"] in _edit_item_opts else 0)
+                edit_vat = st.selectbox("VAT Treatment", _edit_vat_norm,
+                    format_func=lambda v: _edit_vat_lbl_map.get(v, v),
+                    index=_edit_vat_norm.index(s["vat_treatment"]) if s["vat_treatment"] in _edit_vat_norm else 0)
                 edit_name = st.text_input("Scenario Name", value=s["scenario_name"])
             edit_notes = st.text_area("Notes", value=s["notes"] or "")
 
@@ -357,3 +373,66 @@ with tab_countries:
                 remove_country_from_list("NonEU", remove_non_eu)
                 st.success(f"Removed {remove_non_eu} from Non-EU list.")
                 st.rerun()
+
+# ── Tab 4: VAT Treatments ──────────────────────────────────────────────────
+with tab_vat:
+    st.subheader("Manage VAT Treatments")
+    st.info(
+        "Each VAT treatment has a **normalized name** (stored in the DB and used in the Import Format export) "
+        "and a **display name** (shown in the UI and Sheet 1 of the Excel export)."
+    )
+
+    vat_list = get_vat_treatments()
+    vat_df = pd.DataFrame(vat_list)[["normalized_name", "display_name"]] if vat_list else pd.DataFrame(columns=["normalized_name", "display_name"])
+    vat_df.columns = ["Normalized Name", "Display Name"]
+    st.dataframe(vat_df, use_container_width=True, hide_index=True)
+
+    st.divider()
+    col_add, col_edit = st.columns(2)
+
+    with col_add:
+        st.markdown("#### ➕ Add")
+        with st.form("add_vat_form"):
+            new_norm = st.text_input("Normalized Name *", placeholder="e.g. RC_IMPORT_§21")
+            new_disp = st.text_input("Display Name *", placeholder="e.g. Import VAT §21 UStG")
+            if st.form_submit_button("Add VAT Treatment", type="primary"):
+                if not new_norm.strip() or not new_disp.strip():
+                    st.error("Both fields are required.")
+                elif add_vat_treatment(new_norm.strip(), new_disp.strip()):
+                    st.success(f"Added **{new_norm.strip()}**.")
+                    st.rerun()
+                else:
+                    st.warning(f"**{new_norm.strip()}** already exists.")
+
+    with col_edit:
+        st.markdown("#### ✏️ Edit")
+        if vat_list:
+            with st.form("edit_vat_form"):
+                vat_opts = {v["normalized_name"]: v for v in vat_list}
+                sel_norm = st.selectbox("Select to edit", list(vat_opts.keys()))
+                sel_v = vat_opts[sel_norm]
+                upd_norm = st.text_input("Normalized Name", value=sel_v["normalized_name"])
+                upd_disp = st.text_input("Display Name", value=sel_v["display_name"])
+                if st.form_submit_button("💾 Save", type="primary"):
+                    if not upd_norm.strip() or not upd_disp.strip():
+                        st.error("Both fields are required.")
+                    else:
+                        update_vat_treatment(sel_v["id"], upd_norm.strip(), upd_disp.strip())
+                        st.success("Updated.")
+                        st.rerun()
+
+    st.divider()
+    st.markdown("#### 🗑️ Delete")
+    st.warning("Deleting a VAT treatment does not remove scenarios that use it — their stored normalized name remains unchanged.")
+    if vat_list:
+        with st.form("del_vat_form"):
+            del_norm = st.selectbox("Select to delete", [v["normalized_name"] for v in vat_list])
+            del_vat_entry = next(v for v in vat_list if v["normalized_name"] == del_norm)
+            confirm_vat_del = st.checkbox(f'Confirm delete "{del_norm}"')
+            if st.form_submit_button("Delete", type="secondary"):
+                if not confirm_vat_del:
+                    st.error("Please tick the confirmation checkbox.")
+                else:
+                    delete_vat_treatment(del_vat_entry["id"])
+                    st.success(f"Deleted **{del_norm}**.")
+                    st.rerun()

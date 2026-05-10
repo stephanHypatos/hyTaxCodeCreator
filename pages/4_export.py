@@ -5,8 +5,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from datetime import date
 import streamlit as st
 import pandas as pd
-from database import get_full_mapping, count_assigned, get_distinct_countries, get_country_codes
-from utils.constants import VAT_TREATMENT_LABELS, COUNTRY_NAMES
+from database import get_full_mapping, count_assigned, get_distinct_countries, get_country_codes, get_vat_treatment_labels
+from utils.constants import COUNTRY_NAMES
 from utils.excel_export import build_excel
 
 st.set_page_config(page_title="Export", page_icon="📤", layout="wide")
@@ -61,7 +61,7 @@ df = pd.DataFrame([
         "Tax Rate":         f"{r['tax_rate']*100:.2f}%" if r["tax_rate"] is not None else "—",
         "Supplier":         r["supplier_location"] or "—",
         "Item":             r["item_nature"] or "—",
-        "VAT Treatment":    VAT_TREATMENT_LABELS.get(r["vat_treatment"], r["vat_treatment"]),
+        "VAT Treatment":    vat_labels.get(r["vat_treatment"], r["vat_treatment"]),
         "Scenario":         r["scenario_name"],
         "Default Tax Code": r["default_code"],
         "Company Tax Code": r["company_code"] if r["company_code"] else "⚠️ not set",
@@ -96,7 +96,8 @@ st.subheader("Download Excel")
 
 eu_codes     = get_country_codes("EU")
 non_eu_codes = get_country_codes("NonEU")
-excel_bytes  = build_excel(all_rows, company, eu_codes, non_eu_codes, filter_country)
+vat_labels   = get_vat_treatment_labels()
+excel_bytes  = build_excel(all_rows, company, eu_codes, non_eu_codes, vat_labels, filter_country)
 filename = f"{company['acronym']}_taxcodes_{date.today().isoformat()}.xlsx"
 
 st.download_button(
