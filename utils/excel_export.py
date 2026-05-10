@@ -32,6 +32,7 @@ MAPPING_COLUMNS = [
 
 # Sheet 3 import-format columns
 IMPORT_COLUMNS = [
+    ("externalId",       "externalId",       12),
     ("code",             "code",             16),
     ("description",      "description",      40),
     ("itemsTaxRate",     "itemsTaxRate",     14),
@@ -196,8 +197,10 @@ def build_excel(
     ws3.row_dimensions[1].height = 26
 
     expanded = _expand_rows(rows, eu_codes, non_eu_codes)
-    for ri, rec in enumerate(expanded, start=2):
+    for seq, rec in enumerate(expanded, start=1):
+        ri = seq + 1  # row 1 is header
         is_alt = (ri % 2 == 0)
+        rec["externalId"] = f"{seq:05d}"
         for ci, (field, _, _) in enumerate(IMPORT_COLUMNS, start=1):
             val  = rec.get(field, "")
             cell = ws3.cell(row=ri, column=ci, value=val)
