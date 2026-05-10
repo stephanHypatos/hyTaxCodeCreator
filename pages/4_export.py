@@ -49,6 +49,8 @@ if not all_rows:
     st.info("No rows to display with the current filters.")
     st.stop()
 
+vat_labels = get_vat_treatment_labels()
+
 # ── Display dataframe ──────────────────────────────────────────────────────
 st.divider()
 st.subheader("Preview")
@@ -96,7 +98,6 @@ st.subheader("Download Excel")
 
 eu_codes     = get_country_codes("EU")
 non_eu_codes = get_country_codes("NonEU")
-vat_labels   = get_vat_treatment_labels()
 excel_bytes  = build_excel(all_rows, company, eu_codes, non_eu_codes, vat_labels, filter_country)
 filename = f"{company['acronym']}_taxcodes_{date.today().isoformat()}.xlsx"
 
