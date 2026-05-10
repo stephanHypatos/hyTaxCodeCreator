@@ -38,6 +38,7 @@ IMPORT_COLUMNS = [
     ("itemsTaxRateCoupa","itemsTaxRateCoupa",18),
     ("recipientCountry", "recipientCountry", 16),
     ("vendorCountry",    "vendorCountry",    14),
+    ("category",         "category",         12),
     ("taxTreatment",     "taxTreatment",     30),
 ]
 
@@ -91,6 +92,7 @@ def _expand_rows(rows: list[dict], eu_codes: list[str], non_eu_codes: list[str])
             "itemsTaxRate":      _rate_decimal(r.get("tax_rate")),
             "itemsTaxRateCoupa": _rate_coupa(r.get("tax_rate")),
             "recipientCountry":  rc,
+            "category":          r.get("item_nature") or "",
             "taxTreatment":      r["vat_treatment"],
         }
 
